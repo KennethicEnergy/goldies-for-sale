@@ -2,6 +2,48 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
+function ImageWithLoader({ src, alt, className, fill, width, height, onClick }: {
+  src: string;
+  alt: string;
+  className?: string;
+  fill?: boolean;
+  width?: number;
+  height?: number;
+  onClick?: (e: React.MouseEvent) => void;
+}) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative w-full h-full">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
+        </div>
+      )}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
+          <div className="text-gray-500 text-sm">Failed to load</div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        className={className}
+        fill={fill}
+        width={width}
+        height={height}
+        onClick={onClick}
+        onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setIsLoading(false);
+          setHasError(true);
+        }}
+      />
+    </div>
+  );
+}
+
 interface Puppy {
 	id: number;
 	name: string;
@@ -57,7 +99,7 @@ function GalleryModal({
 							key={idx}
 							className="relative w-full aspect-square group cursor-pointer"
 							onClick={() => onImageClick(img)}>
-							<Image
+							<ImageWithLoader
 								src={img}
 								alt={name + " photo " + (idx + 1)}
 								fill
@@ -124,7 +166,7 @@ function FullSizeImageModal({
 				)}
 
 				{/* Image */}
-				<Image
+				<ImageWithLoader
 					src={currentImage}
 					alt={`${name} photo ${currentImageIndex + 1}`}
 					width={1200}
@@ -209,7 +251,7 @@ export default function Home() {
 						onClick={() =>
 							setModal({ name: data.dam.name, images: data.dam.images })
 						}>
-						<Image
+						<ImageWithLoader
 							src={data.dam.images[0]}
 							alt="Dam"
 							fill
@@ -226,7 +268,7 @@ export default function Home() {
 						onClick={() =>
 							setModal({ name: data.sire.name, images: data.sire.images })
 						}>
-						<Image
+						<ImageWithLoader
 							src={data.sire.images[0]}
 							alt="Sire"
 							fill
@@ -247,7 +289,7 @@ export default function Home() {
 							setModal({ name: puppy.name, images: puppy.images })
 						}>
 						<div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
-							<Image
+							<ImageWithLoader
 								src={puppy.images[0]}
 								alt={puppy.name}
 								fill
