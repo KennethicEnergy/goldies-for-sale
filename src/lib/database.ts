@@ -86,9 +86,9 @@ export async function getAllPuppies(): Promise<Puppy[]> {
   const database = await getDatabase();
   const puppies = await database.all('SELECT * FROM puppies ORDER BY createdAt DESC');
 
-  return puppies.map((puppy: any) => ({
+  return (puppies as Puppy[]).map((puppy: Puppy) => ({
     ...puppy,
-    images: JSON.parse(puppy.images)
+    images: JSON.parse(puppy.images as unknown as string)
   }));
 }
 
@@ -96,12 +96,12 @@ export async function getDogs(): Promise<{ dam: Dog; sire: Dog }> {
   const database = await getDatabase();
   const dogs = await database.all('SELECT * FROM dogs ORDER BY type');
 
-  const dam = dogs.find((dog: any) => dog.type === 'dam');
-  const sire = dogs.find((dog: any) => dog.type === 'sire');
+  const dam = (dogs as Dog[]).find((dog: Dog) => dog.type === 'dam')!;
+  const sire = (dogs as Dog[]).find((dog: Dog) => dog.type === 'sire')!;
 
   return {
-    dam: { ...dam, images: JSON.parse(dam.images) },
-    sire: { ...sire, images: JSON.parse(sire.images) }
+    dam: { ...dam, images: JSON.parse(dam.images as unknown as string) },
+    sire: { ...sire, images: JSON.parse(sire.images as unknown as string) }
   };
 }
 

@@ -110,22 +110,22 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-800 text-lg">Loading admin panel...</p>
+      <main className="min-h-screen bg-yellow-50 flex items-center justify-center">
+        <div className="text-center text-black">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mb-4"></div>
+          <p className="text-black text-lg">Loading admin panel...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <main className="min-h-screen bg-yellow-50 p-8 text-black">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-gray-900">Puppy Admin Panel</h1>
+        <h1 className="text-4xl font-bold mb-8 text-black">Puppy Admin Panel</h1>
 
         {/* Upload Section */}
-        <div className="bg-white rounded-lg p-6 mb-8 shadow-md">
+        <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
           <h2 className="text-2xl font-semibold mb-4">Upload Images</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
@@ -148,6 +148,7 @@ export default function AdminPage() {
                 type="file"
                 multiple
                 accept="image/*"
+                capture="environment"
                 onChange={handleFileUpload}
                 disabled={uploading}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -166,7 +167,7 @@ export default function AdminPage() {
         </div>
 
         {/* Add New Puppy */}
-        <div className="bg-white rounded-lg p-6 mb-8 shadow-md">
+        <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
           <h2 className="text-2xl font-semibold mb-4">Add New Puppy</h2>
           <div className="flex gap-4">
             <input
@@ -186,7 +187,7 @@ export default function AdminPage() {
         </div>
 
         {/* Puppies List */}
-        <div className="bg-white rounded-lg p-6 shadow-md">
+        <div className="bg-white rounded-lg p-6 shadow-md text-black">
           <h2 className="text-2xl font-semibold mb-4">Manage Puppies</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {puppies.map((puppy) => (
