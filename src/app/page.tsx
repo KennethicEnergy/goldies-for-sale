@@ -202,7 +202,7 @@ export default function Home() {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ pageVisited: "home" })
-		}).catch(console.error);
+		}).catch(error => console.error("Error tracking visit:", error));
 
 		// Fetch puppies data
 		fetch("/api/puppies")
