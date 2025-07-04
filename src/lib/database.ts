@@ -63,8 +63,8 @@ export async function initializeDatabase() {
     // Insert initial data
     await database.run(`
       INSERT INTO dogs (name, type, images) VALUES
-      ('Queenie', 'dam', '["/dogs/dam/image1.jpg", "/dogs/dam/image2.jpg"]'),
-      ('King', 'sire', '["/dogs/sire/image1.jpg"]')
+      ('Queenie', 'dam', '["/dogs/dam/image1.jpg", "/dogs/dam/image2.jpg", "/dogs/dam/image3.jpg", "/dogs/dam/image4.jpg", "/dogs/dam/image5.jpg", "/dogs/dam/image6.jpg"]'),
+      ('King', 'sire', '["/dogs/sire/image1.jpg", "/dogs/sire/image2.jpg", "/dogs/sire/image3.jpg", "/dogs/sire/image4.jpg"]')
     `);
 
     await database.run(`
@@ -131,4 +131,28 @@ export async function removePuppyImage(puppyId: number, imagePath: string) {
   const images = JSON.parse(puppy.images as string) as string[];
   const newImages = images.filter((img) => img !== imagePath);
   await database.run('UPDATE puppies SET images = ? WHERE id = ?', [JSON.stringify(newImages), puppyId]);
+}
+
+export async function updateDamImages() {
+  const database = await getDatabase();
+  const damImages = [
+    "/dogs/dam/image1.jpg",
+    "/dogs/dam/image2.jpg",
+    "/dogs/dam/image3.jpg",
+    "/dogs/dam/image4.jpg",
+    "/dogs/dam/image5.jpg",
+    "/dogs/dam/image6.jpg"
+  ];
+  await database.run('UPDATE dogs SET images = ? WHERE type = ?', [JSON.stringify(damImages), 'dam']);
+}
+
+export async function updateSireImages() {
+  const database = await getDatabase();
+  const sireImages = [
+    "/dogs/sire/image1.jpg",
+    "/dogs/sire/image2.jpg",
+    "/dogs/sire/image3.jpg",
+    "/dogs/sire/image4.jpg"
+  ];
+  await database.run('UPDATE dogs SET images = ? WHERE type = ?', [JSON.stringify(sireImages), 'sire']);
 }

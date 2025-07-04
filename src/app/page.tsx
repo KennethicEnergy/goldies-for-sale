@@ -24,7 +24,7 @@ interface Data {
   sire: Dog;
 }
 
-function GalleryModal({ images, name, onClose }: { images: string[]; name: string; onClose: () => void }) {
+function GalleryModal({ images, name, onClose, onImageClick }: { images: string[]; name: string; onClose: () => void; onImageClick: (image: string) => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 relative shadow-2xl border border-gray-200">
@@ -33,7 +33,7 @@ function GalleryModal({ images, name, onClose }: { images: string[]; name: strin
         <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 mt-8">{name}&apos;s Gallery</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {images.map((img, idx) => (
-            <div key={idx} className="relative w-full aspect-square group">
+            <div key={idx} className="relative w-full aspect-square group cursor-pointer" onClick={() => onImageClick(img)}>
               <Image src={img} alt={name + " photo " + (idx + 1)} fill className="object-cover rounded-lg shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 rounded-lg"></div>
             </div>
@@ -44,8 +44,68 @@ function GalleryModal({ images, name, onClose }: { images: string[]; name: strin
   );
 }
 
+function FullSizeImageModal({ images, currentImageIndex, name, onClose, onNavigate }: {
+  images: string[];
+  currentImageIndex: number;
+  name: string;
+  onClose: () => void;
+  onNavigate: (direction: 'prev' | 'next') => void;
+}) {
+  const currentImage = images[currentImageIndex];
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-[80%] h-[80%] flex items-center justify-center">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl"
+        >
+          &times;
+        </button>
+
+        {/* Previous button */}
+        {currentImageIndex > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl"
+          >
+            ‹
+          </button>
+        )}
+
+        {/* Next button */}
+        {currentImageIndex < images.length - 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onNavigate('next'); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl"
+          >
+            ›
+          </button>
+        )}
+
+        {/* Image */}
+        <Image
+          src={currentImage}
+          alt={`${name} photo ${currentImageIndex + 1}`}
+          width={1200}
+          height={800}
+          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+
+        {/* Image counter */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full text-sm">
+          {currentImageIndex + 1} / {images.length}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [modal, setModal] = useState<null | { name: string; images: string[] }>(null);
+  const [fullSizeImage, setFullSizeImage] = useState<null | { images: string[]; currentIndex: number; name: string }>(null);
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -117,7 +177,32 @@ export default function Home() {
           </div>
         ))}
       </div>
-      {modal && <GalleryModal images={modal.images} name={modal.name} onClose={() => setModal(null)} />}
+            {modal && !fullSizeImage && (
+        <GalleryModal
+          images={modal.images}
+          name={modal.name}
+          onClose={() => setModal(null)}
+          onImageClick={(image) => {
+            const imageIndex = modal.images.indexOf(image);
+            setFullSizeImage({ images: modal.images, currentIndex: imageIndex, name: modal.name });
+          }}
+        />
+      )}
+      {fullSizeImage && (
+        <FullSizeImageModal
+          images={fullSizeImage.images}
+          currentImageIndex={fullSizeImage.currentIndex}
+          name={fullSizeImage.name}
+          onClose={() => setFullSizeImage(null)}
+          onNavigate={(direction) => {
+            if (direction === 'prev' && fullSizeImage.currentIndex > 0) {
+              setFullSizeImage({ ...fullSizeImage, currentIndex: fullSizeImage.currentIndex - 1 });
+            } else if (direction === 'next' && fullSizeImage.currentIndex < fullSizeImage.images.length - 1) {
+              setFullSizeImage({ ...fullSizeImage, currentIndex: fullSizeImage.currentIndex + 1 });
+            }
+          }}
+        />
+      )}
     </main>
   );
 }

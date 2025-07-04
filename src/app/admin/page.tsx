@@ -131,7 +131,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-yellow-50 p-8 text-black">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-black">Puppy Admin Panel</h1>
+        <h1 className="text-4xl font-bold mb-8 text-black">Goldie Admin Panel</h1>
 
         {/* Upload Section */}
         <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
