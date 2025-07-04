@@ -123,3 +123,12 @@ export async function deletePuppy(id: number) {
   const database = await getDatabase();
   await database.run('DELETE FROM puppies WHERE id = ?', [id]);
 }
+
+export async function removePuppyImage(puppyId: number, imagePath: string) {
+  const database = await getDatabase();
+  const puppy = await database.get('SELECT * FROM puppies WHERE id = ?', [puppyId]);
+  if (!puppy) return;
+  const images = JSON.parse(puppy.images as string) as string[];
+  const newImages = images.filter((img) => img !== imagePath);
+  await database.run('UPDATE puppies SET images = ? WHERE id = ?', [JSON.stringify(newImages), puppyId]);
+}

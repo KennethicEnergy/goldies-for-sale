@@ -108,6 +108,15 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteImage = async (imgPath: string, puppyId: number) => {
+    await fetch('/api/delete-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imagePath: imgPath, puppyId })
+    });
+    fetchData();
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-yellow-50 flex items-center justify-center">
@@ -148,7 +157,6 @@ export default function AdminPage() {
                 type="file"
                 multiple
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileUpload}
                 disabled={uploading}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -192,13 +200,23 @@ export default function AdminPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {puppies.map((puppy) => (
               <div key={puppy.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="aspect-square relative w-full h-32 mb-3">
-                  <Image
-                    src={puppy.images[0] || '/placeholder.jpg'}
-                    alt={puppy.name}
-                    fill
-                    className="object-cover rounded"
-                  />
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {puppy.images.map((img) => (
+                    <div key={img} className="relative">
+                      <Image
+                        src={img || '/placeholder.jpg'}
+                        alt={puppy.name}
+                        width={80}
+                        height={80}
+                        className="object-cover rounded"
+                      />
+                      <button
+                        className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 text-xs"
+                        onClick={() => handleDeleteImage(img, puppy.id)}
+                        title="Delete image"
+                      >🗑️</button>
+                    </div>
+                  ))}
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{puppy.name}</h3>
                 <div className="flex items-center justify-between">

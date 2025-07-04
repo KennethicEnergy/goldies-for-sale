@@ -110,10 +110,10 @@ export default function Home() {
             <div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
               <Image src={puppy.images[0]} alt={puppy.name} fill className="object-cover" />
               {puppy.isSold && (
-                <span className="absolute top-2 left-2 bg-white text-red-600 px-2 py-1 rounded text-xs font-bold border border-red-600 transform">REHOMED</span>
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">REHOMED</span>
               )}
             </div>
-            <div className="mt-2 text-center text-yellow-900 font-semibold text-lg">{puppy.name}</div>
+            {/* <div className="mt-2 text-center text-yellow-900 font-semibold text-lg">{puppy.name}</div> */}
           </div>
         ))}
       </div>
