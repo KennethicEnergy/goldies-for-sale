@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { syncAllData } from '@/lib/database';
+import { addNewImagesIncrementally } from '@/lib/database';
 
 export async function POST() {
   try {
-    await syncAllData();
-    return NextResponse.json({ success: true, message: 'All data synced successfully' });
+    await addNewImagesIncrementally();
+    return NextResponse.json({ success: true, message: 'New images added incrementally' });
   } catch (error) {
-    console.error('Error syncing data:', error);
-    return NextResponse.json({ error: 'Failed to sync data' }, { status: 500 });
+    console.error('Error adding images incrementally:', error);
+    return NextResponse.json({ error: 'Failed to add images incrementally' }, { status: 500 });
   }
 }
