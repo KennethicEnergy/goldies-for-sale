@@ -50,6 +50,16 @@ async function getDatabase(): Promise<Database> {
     )
   `);
 
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ip_address TEXT,
+      user_agent TEXT,
+      page_visited TEXT DEFAULT 'home',
+      visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   return db;
 }
 
@@ -156,6 +166,69 @@ export async function updateSireImages() {
     "/dogs/sire/image4.jpg"
   ];
   await database.run('UPDATE dogs SET images = ? WHERE type = ?', [JSON.stringify(sireImages), 'sire']);
+}
+
+export async function trackVisit(ipAddress: string, userAgent: string, pageVisited: string = 'home') {
+  const database = await getDatabase();
+  await database.run(
+    'INSERT INTO visits (ip_address, user_agent, page_visited) VALUES (?, ?, ?)',
+    [ipAddress, userAgent, pageVisited]
+  );
+}
+
+export async function getVisitStats() {
+  const database = await getDatabase();
+
+  // Total visits
+  const totalVisits = await database.get('SELECT COUNT(*) as count FROM visits');
+
+  // Today's visits
+  const todayVisits = await database.get(`
+    SELECT COUNT(*) as count FROM visits
+    WHERE DATE(visited_at) = DATE('now')
+  `);
+
+  // This week's visits
+  const weekVisits = await database.get(`
+    SELECT COUNT(*) as count FROM visits
+    WHERE visited_at >= DATE('now', '-7 days')
+  `);
+
+  // This month's visits
+  const monthVisits = await database.get(`
+    SELECT COUNT(*) as count FROM visits
+    WHERE visited_at >= DATE('now', '-30 days')
+  `);
+
+  // Unique visitors (by IP) today
+  const uniqueToday = await database.get(`
+    SELECT COUNT(DISTINCT ip_address) as count FROM visits
+    WHERE DATE(visited_at) = DATE('now')
+  `);
+
+  // Unique visitors this week
+  const uniqueWeek = await database.get(`
+    SELECT COUNT(DISTINCT ip_address) as count FROM visits
+    WHERE visited_at >= DATE('now', '-7 days')
+  `);
+
+  // Recent visits (last 10)
+  const recentVisits = await database.all(`
+    SELECT ip_address, page_visited, visited_at
+    FROM visits
+    ORDER BY visited_at DESC
+    LIMIT 10
+  `);
+
+  return {
+    total: totalVisits.count,
+    today: todayVisits.count,
+    week: weekVisits.count,
+    month: monthVisits.count,
+    uniqueToday: uniqueToday.count,
+    uniqueWeek: uniqueWeek.count,
+    recentVisits
+  };
 }
 
 export async function syncAllData() {

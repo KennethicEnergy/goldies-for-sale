@@ -197,6 +197,14 @@ export default function Home() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
+		// Track visit
+		fetch("/api/track-visit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ pageVisited: "home" })
+		}).catch(console.error);
+
+		// Fetch puppies data
 		fetch("/api/puppies")
 			.then((res) => res.json())
 			.then((data) => {

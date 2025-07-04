@@ -10,8 +10,23 @@ interface Puppy {
   createdAt: string;
 }
 
+interface VisitStats {
+  total: number;
+  today: number;
+  week: number;
+  month: number;
+  uniqueToday: number;
+  uniqueWeek: number;
+  recentVisits: Array<{
+    ip_address: string;
+    page_visited: string;
+    visited_at: string;
+  }>;
+}
+
 export default function AdminPage() {
   const [puppies, setPuppies] = useState<Puppy[]>([]);
+  const [visitStats, setVisitStats] = useState<VisitStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState("gray");
   const [uploading, setUploading] = useState(false);
@@ -19,14 +34,28 @@ export default function AdminPage() {
   const [newPuppyName, setNewPuppyName] = useState("");
 
   useEffect(() => {
+    // Track admin page visit
+    fetch("/api/track-visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pageVisited: "admin" })
+    }).catch(console.error);
+
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/puppies');
-      const data = await response.json();
-      setPuppies(data.puppies);
+      const [puppiesResponse, statsResponse] = await Promise.all([
+        fetch('/api/puppies'),
+        fetch('/api/visit-stats')
+      ]);
+
+      const puppiesData = await puppiesResponse.json();
+      const statsData = await statsResponse.json();
+
+      setPuppies(puppiesData.puppies);
+      setVisitStats(statsData);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -132,6 +161,61 @@ export default function AdminPage() {
     <main className="min-h-screen bg-yellow-50 p-8 text-black">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold mb-8 text-black">Goldie Admin Panel</h1>
+
+        {/* Visit Statistics */}
+        {visitStats && (
+          <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
+            <h2 className="text-2xl font-semibold mb-4">Visit Statistics</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-600">{visitStats.total}</div>
+                <div className="text-sm text-blue-700">Total Visits</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-600">{visitStats.today}</div>
+                <div className="text-sm text-green-700">Today</div>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-yellow-600">{visitStats.week}</div>
+                <div className="text-sm text-yellow-700">This Week</div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-purple-600">{visitStats.month}</div>
+                <div className="text-sm text-purple-700">This Month</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-indigo-50 p-4 rounded-lg text-center">
+                <div className="text-xl font-bold text-indigo-600">{visitStats.uniqueToday}</div>
+                <div className="text-sm text-indigo-700">Unique Visitors Today</div>
+              </div>
+              <div className="bg-pink-50 p-4 rounded-lg text-center">
+                <div className="text-xl font-bold text-pink-600">{visitStats.uniqueWeek}</div>
+                <div className="text-sm text-pink-700">Unique Visitors This Week</div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Recent Visits</h3>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                {visitStats.recentVisits.map((visit, index) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-800">
+                        {visit.ip_address}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(visit.visited_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-700">
+                      {visit.page_visited}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Upload Section */}
         <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
