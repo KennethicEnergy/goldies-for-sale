@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import path from 'path';
+import fs from 'fs';
 
 let db: Database | null = null;
 
@@ -60,25 +61,11 @@ export async function initializeDatabase() {
   const dogCount = await database.get('SELECT COUNT(*) as count FROM dogs');
 
   if (puppyCount.count === 0 && dogCount.count === 0) {
-    // Insert initial data
-    await database.run(`
-      INSERT INTO dogs (name, type, images) VALUES
-      ('Queenie', 'dam', '["/dogs/dam/image1.jpg", "/dogs/dam/image2.jpg", "/dogs/dam/image3.jpg", "/dogs/dam/image4.jpg", "/dogs/dam/image5.jpg", "/dogs/dam/image6.jpg"]'),
-      ('King', 'sire', '["/dogs/sire/image1.jpg", "/dogs/sire/image2.jpg", "/dogs/sire/image3.jpg", "/dogs/sire/image4.jpg"]')
-    `);
-
-    await database.run(`
-      INSERT INTO puppies (name, images, isSold) VALUES
-      ('Gray', '["/dogs/gray/image1.jpg", "/dogs/gray/image2.jpg"]', 0),
-      ('Red', '["/dogs/red/image1.jpg"]', 0),
-      ('Blue', '["/dogs/blue/image1.jpg"]', 0),
-      ('Sky', '["/dogs/sky/image1.jpg"]', 0),
-      ('Fuchsia', '["/dogs/fuchsia/image1.jpg"]', 0),
-      ('Yellow', '["/dogs/yellow/image1.jpg"]', 0),
-      ('Green', '["/dogs/green/image1.jpg"]', 1),
-      ('Pink', '["/dogs/pink/image1.jpg"]', 1),
-      ('Violet', '["/dogs/violet/image1.jpg"]', 0)
-    `);
+    // If no data exists, sync from file system
+    await syncAllData();
+  } else {
+    // If data exists, still sync to ensure it's up to date
+    await syncAllData();
   }
 }
 
@@ -155,4 +142,158 @@ export async function updateSireImages() {
     "/dogs/sire/image4.jpg"
   ];
   await database.run('UPDATE dogs SET images = ? WHERE type = ?', [JSON.stringify(sireImages), 'sire']);
+}
+
+export async function syncAllData() {
+  const database = await getDatabase();
+  const dogsPath = path.join(process.cwd(), 'public', 'dogs');
+
+  try {
+    // Read all folders in the dogs directory
+    const folders = fs.readdirSync(dogsPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    console.log('Found folders:', folders);
+
+    // Handle dam and sire (parent dogs)
+    const parentDogs = ['dam', 'sire'];
+    for (const folder of parentDogs) {
+      if (folders.includes(folder)) {
+        const folderPath = path.join(dogsPath, folder);
+        const files = fs.readdirSync(folderPath);
+
+        // Filter and sort image files
+        const imageFiles = files
+          .filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
+          .sort((a: string, b: string) => {
+            const aMatch = a.match(/image(\d+)\./);
+            const bMatch = b.match(/image(\d+)\./);
+            if (aMatch && bMatch) {
+              return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+            }
+            return a.localeCompare(b);
+          });
+
+        const imagePaths = imageFiles.map((file: string) => `/dogs/${folder}/${file}`);
+        const dogName = folder === 'dam' ? 'Queenie' : 'King';
+
+        // Check if dog exists in database
+        const existingDog = await database.get('SELECT * FROM dogs WHERE type = ?', [folder]);
+
+        if (existingDog) {
+          // Get existing images and merge with new ones (avoid duplicates)
+          const existingImages = JSON.parse(existingDog.images as string) as string[];
+          const newImages = imagePaths.filter(img => !existingImages.includes(img));
+          const allImages = [...existingImages, ...newImages];
+
+          if (newImages.length > 0) {
+            await database.run('UPDATE dogs SET images = ? WHERE type = ?', [JSON.stringify(allImages), folder]);
+            console.log(`Updated ${dogName} (${folder}): Added ${newImages.length} new images, total ${allImages.length}`);
+          } else {
+            console.log(`No new images for ${dogName} (${folder}): ${existingImages.length} images`);
+          }
+        } else {
+          // Create new dog
+          await database.run('INSERT INTO dogs (name, type, images) VALUES (?, ?, ?)', [dogName, folder, JSON.stringify(imagePaths)]);
+          console.log(`Created ${dogName} (${folder}): ${imagePaths.length} images`);
+        }
+      }
+    }
+
+    // Handle puppies (all other folders)
+    const puppyFolders = folders.filter(folder => !parentDogs.includes(folder));
+
+    for (const folder of puppyFolders) {
+      const folderPath = path.join(dogsPath, folder);
+      const files = fs.readdirSync(folderPath);
+
+      // Filter and sort image files
+      const imageFiles = files
+        .filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
+        .sort((a: string, b: string) => {
+          const aMatch = a.match(/image(\d+)\./);
+          const bMatch = b.match(/image(\d+)\./);
+          if (aMatch && bMatch) {
+            return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+          }
+          return a.localeCompare(b);
+        });
+
+      const imagePaths = imageFiles.map((file: string) => `/dogs/${folder}/${file}`);
+      const puppyName = folder.charAt(0).toUpperCase() + folder.slice(1); // Capitalize first letter
+
+      // Check if puppy exists in database
+      const existingPuppy = await database.get('SELECT * FROM puppies WHERE name = ?', [puppyName]);
+
+      if (existingPuppy) {
+        // Get existing images and merge with new ones (avoid duplicates)
+        const existingImages = JSON.parse(existingPuppy.images as string) as string[];
+        const newImages = imagePaths.filter(img => !existingImages.includes(img));
+        const allImages = [...existingImages, ...newImages];
+
+        if (newImages.length > 0) {
+          await database.run('UPDATE puppies SET images = ? WHERE name = ?', [JSON.stringify(allImages), puppyName]);
+          console.log(`Updated ${puppyName}: Added ${newImages.length} new images, total ${allImages.length}`);
+        } else {
+          console.log(`No new images for ${puppyName}: ${existingImages.length} images`);
+        }
+      } else {
+        // Create new puppy (default to available)
+        await database.run('INSERT INTO puppies (name, images, isSold) VALUES (?, ?, ?)', [puppyName, JSON.stringify(imagePaths), false]);
+        console.log(`Created ${puppyName}: ${imagePaths.length} images`);
+      }
+    }
+
+    console.log('Database sync completed successfully!');
+
+  } catch (error) {
+    console.error('Error syncing data:', error);
+    throw error;
+  }
+}
+
+export async function updateAllPuppyImages() {
+  const database = await getDatabase();
+
+  // Get all puppies from database
+  const puppies = await database.all('SELECT * FROM puppies');
+
+  for (const puppy of puppies) {
+    const puppyName = puppy.name.toLowerCase();
+    const folderPath = path.join(process.cwd(), 'public', 'dogs', puppyName);
+
+    try {
+      // Check if folder exists
+      if (fs.existsSync(folderPath)) {
+        // Read all files in the folder
+        const files = fs.readdirSync(folderPath);
+
+        // Filter for image files and sort them
+        const imageFiles = files
+          .filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
+          .sort((a: string, b: string) => {
+            // Sort by image number if they follow pattern like image1.jpg, image2.jpg
+            const aMatch = a.match(/image(\d+)\./);
+            const bMatch = b.match(/image(\d+)\./);
+            if (aMatch && bMatch) {
+              return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+            }
+            return a.localeCompare(b);
+          });
+
+        // Create image paths
+        const imagePaths = imageFiles.map((file: string) => `/dogs/${puppyName}/${file}`);
+
+        // Update database with actual images
+        await database.run('UPDATE puppies SET images = ? WHERE name = ?', [JSON.stringify(imagePaths), puppy.name]);
+
+        console.log(`Updated ${puppy.name}: ${imagePaths.length} images found`);
+      } else {
+        console.log(`Folder not found for ${puppy.name}: ${folderPath}`);
+      }
+    } catch (error) {
+      console.error(`Error updating ${puppy.name}:`, error);
+    }
+  }
 }
