@@ -1,34 +1,28 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
-// Function to generate image paths based on folder structure
-const generateImagePaths = (folderName: string, count: number = 3) => {
-  return Array.from({ length: count }, (_, i) => `/dogs/${folderName.toLowerCase()}/image${i + 1}.jpg`);
-};
+interface Puppy {
+  id: number;
+  name: string;
+  images: string[];
+  isSold: boolean;
+  createdAt: string;
+}
 
-// Dynamic data structure based on folder naming
-const data = {
-  dam: {
-    name: "Queenie",
-    images: generateImagePaths("dam", 2)
-  },
-  sire: {
-    name: "King",
-    images: generateImagePaths("sire", 1)
-  },
-  puppies: [
-    { name: "Gray", images: generateImagePaths("gray", 2), isSold: false },
-    { name: "Red", images: generateImagePaths("red", 1), isSold: false },
-    { name: "Blue", images: generateImagePaths("blue", 1), isSold: false },
-    { name: "Sky", images: generateImagePaths("sky", 1), isSold: false },
-    { name: "Fuchsia", images: generateImagePaths("fuchsia", 1), isSold: false },
-    { name: "Yellow", images: generateImagePaths("yellow", 1), isSold: false },
-    { name: "Green", images: generateImagePaths("green", 1), isSold: true },
-    { name: "Pink", images: generateImagePaths("pink", 1), isSold: true },
-    { name: "Violet", images: generateImagePaths("violet", 1), isSold: false },
-  ],
-};
+interface Dog {
+  id: number;
+  name: string;
+  type: 'dam' | 'sire';
+  images: string[];
+  createdAt: string;
+}
+
+interface Data {
+  puppies: Puppy[];
+  dam: Dog;
+  sire: Dog;
+}
 
 function GalleryModal({ images, name, onClose }: { images: string[]; name: string; onClose: () => void }) {
   return (
@@ -52,11 +46,50 @@ function GalleryModal({ images, name, onClose }: { images: string[]; name: strin
 
 export default function Home() {
   const [modal, setModal] = useState<null | { name: string; images: string[] }>(null);
+  const [data, setData] = useState<Data | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/puppies')
+      .then(res => res.json())
+      .then(data => {
+        setData(data);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mb-4"></div>
+          <p className="text-yellow-800 text-lg">Loading puppies...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="min-h-screen bg-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-lg">Failed to load puppies</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-yellow-50 flex flex-col items-center p-8">
-      <h1 className="text-4xl font-bold mb-2 text-yellow-900 text-center">Golden Retriever Puppies for Sale</h1>
-      <p className="mb-8 text-lg text-yellow-800">Click a puppy to see more photos!</p>
+      <div className="w-full max-w-4xl">
+        <h1 className="text-4xl font-bold mb-2 text-yellow-900 text-center">Golden Retriever Puppies for Sale</h1>
+        <p className="text-lg text-yellow-800 text-center mb-8">Click a puppy to see more photos!</p>
+      </div>
+
       <div className="mb-6 flex gap-8">
         <div className="text-center">
           <div className="w-24 h-24 relative mx-auto mb-2 cursor-pointer" onClick={() => setModal({ name: data.dam.name, images: data.dam.images })}>
@@ -72,8 +105,8 @@ export default function Home() {
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
-        {data.puppies.map((puppy, idx) => (
-          <div key={idx} className="relative group cursor-pointer" onClick={() => setModal({ name: puppy.name, images: puppy.images })}>
+        {data.puppies.map((puppy) => (
+          <div key={puppy.id} className="relative group cursor-pointer" onClick={() => setModal({ name: puppy.name, images: puppy.images })}>
             <div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
               <Image src={puppy.images[0]} alt={puppy.name} fill className="object-cover" />
               {puppy.isSold && (
