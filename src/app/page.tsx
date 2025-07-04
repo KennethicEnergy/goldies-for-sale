@@ -306,22 +306,20 @@ export default function Home() {
 			{/* Contact Section */}
 			<footer className="w-full max-w-4xl mt-12 pt-8 border-t-2 border-yellow-200">
 				<div className="text-center">
-					<h3 className="text-2xl font-bold text-yellow-900 mb-4">Contact Us</h3>
-					<div className="grid md:grid-cols-2 gap-6 text-yellow-800">
+					<h3 className="text-2xl font-bold text-yellow-900 mb-6">Contact Us</h3>
+
+					<div className="grid md:grid-cols-2 gap-6 text-yellow-800 mb-6">
 						<div>
 							<h4 className="font-semibold text-lg mb-2">Phone</h4>
 							<p className="text-lg">+63 927 255 9083</p>
 						</div>
 						<div>
-							<h4 className="font-semibold text-lg mb-2">Email</h4>
-							<p className="text-lg">kenneth.buenavista21@gmail.com</p>
+							<h4 className="font-semibold text-lg mb-2">Location</h4>
+							<p className="text-lg">Lipa City, Batangas</p>
 						</div>
 					</div>
-					<div className="mt-6">
-						<h4 className="font-semibold text-lg mb-2 text-yellow-900">Location</h4>
-						<p className="text-lg text-yellow-800">Lipa City, Batangas</p>
-					</div>
-					<div className="mt-6">
+
+					<div className="border-t border-yellow-200 pt-4">
 						<p className="text-sm text-yellow-700">
 							Available for visits by appointment only
 						</p>
