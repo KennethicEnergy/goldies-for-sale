@@ -3,12 +3,12 @@ import { updatePuppyStatus } from '@/lib/database';
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { isSold } = await request.json();
+    const { isSold, isReserved } = await request.json();
     const url = new URL(request.url);
     const id = url.pathname.split('/').pop();
     const puppyId = parseInt(id || '0', 10);
 
-    await updatePuppyStatus(puppyId, isSold);
+    await updatePuppyStatus(puppyId, { isSold, isReserved });
 
     return NextResponse.json({ success: true });
   } catch (error) {

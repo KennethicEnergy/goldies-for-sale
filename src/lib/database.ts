@@ -125,9 +125,21 @@ export async function addPuppy(name: string, images: string[], isSold: boolean =
   return result.lastID;
 }
 
-export async function updatePuppyStatus(id: number, isSold: boolean) {
+export async function updatePuppyStatus(id: number, status: { isSold?: boolean; isReserved?: boolean }) {
   const database = await getDatabase();
-  await database.run('UPDATE puppies SET isSold = ? WHERE id = ?', [isSold, id]);
+  const updates = [];
+  const params = [];
+  if (typeof status.isSold === 'boolean') {
+    updates.push('isSold = ?');
+    params.push(status.isSold);
+  }
+  if (typeof status.isReserved === 'boolean') {
+    updates.push('isReserved = ?');
+    params.push(status.isReserved);
+  }
+  if (updates.length === 0) return;
+  params.push(id);
+  await database.run(`UPDATE puppies SET ${updates.join(', ')} WHERE id = ?`, params);
 }
 
 export async function deletePuppy(id: number) {

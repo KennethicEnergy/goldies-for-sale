@@ -49,6 +49,7 @@ interface Puppy {
 	name: string;
 	images: string[];
 	isSold: boolean;
+  isReserved?: boolean;
 	createdAt: string;
 }
 
@@ -195,6 +196,7 @@ export default function Home() {
 	}>(null);
 	const [data, setData] = useState<Data | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [selectedFilter, setSelectedFilter] = useState<string>("ALL");
 
 	useEffect(() => {
 		// Track visit
@@ -247,9 +249,25 @@ export default function Home() {
 				<h2 className="text-2xl font-bold mb-2 text-yellow-900 text-center">
 					FOR SALE
 				</h2>
-				<p className="text-lg text-yellow-800 text-center mb-8">
+				<p className="text-lg text-yellow-800 text-center mb-4">
 					Click a puppy to see more photos!
 				</p>
+
+				{/* Filter Dropdown */}
+				<div className="flex justify-center mb-8">
+					<select
+						value={selectedFilter}
+						onChange={(e) => setSelectedFilter(e.target.value)}
+						className="px-4 py-2 border border-yellow-300 rounded-lg bg-white text-yellow-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+					>
+						<option value="ALL">All Puppies</option>
+						{data.puppies.map((puppy) => (
+							<option key={puppy.id} value={puppy.name}>
+								{puppy.name}
+							</option>
+						))}
+					</select>
+				</div>
 			</div>
 
 			<div className="mb-6 flex gap-8">
@@ -288,31 +306,82 @@ export default function Home() {
 					</span>
 				</div>
 			</div>
-			<div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
-				{data.puppies.map((puppy) => (
-					<div
-						key={puppy.id}
-						className="relative group cursor-pointer"
-						onClick={() =>
-							setModal({ name: puppy.name, images: puppy.images })
-						}>
-						<div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
-							<ImageWithLoader
-								src={puppy.images[0]}
-								alt={puppy.name}
-								fill
-								className="object-cover"
-							/>
-							{puppy.isSold && (
-								<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">
-									REHOMED
-								</span>
-							)}
+
+			{/* Filtered Content */}
+			{selectedFilter === "ALL" ? (
+				// Show all puppies in a grid
+				<div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
+					{data.puppies.map((puppy) => (
+						<div
+							key={puppy.id}
+							className="relative group cursor-pointer"
+							onClick={() =>
+								setModal({ name: puppy.name, images: puppy.images })
+							}>
+							<div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
+								<ImageWithLoader
+									src={puppy.images[0]}
+									alt={puppy.name}
+									fill
+									className="object-cover"
+								/>
+								{puppy.isReserved ? (
+									<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-green-700 px-4 py-2 rounded text-lg font-bold border-2 border-green-600 transform rotate-[320deg]">
+										RESERVED
+									</span>
+								) : puppy.isSold ? (
+									<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">
+										REHOMED
+									</span>
+								) : null}
+							</div>
+							{/* <div className="mt-2 text-center text-yellow-900 font-semibold text-lg">{puppy.name}</div> */}
 						</div>
-						{/* <div className="mt-2 text-center text-yellow-900 font-semibold text-lg">{puppy.name}</div> */}
-					</div>
-				))}
-			</div>
+					))}
+				</div>
+			) : (
+				// Show selected puppy with all its images
+				<div className="w-full max-w-4xl">
+					{(() => {
+						const selectedPuppy = data.puppies.find(p => p.name === selectedFilter);
+						if (!selectedPuppy) return null;
+
+						return (
+							<div className="text-center mb-6">
+								<h3 className="text-2xl font-bold text-yellow-900 mb-4">{selectedPuppy.name}</h3>
+								<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+									{selectedPuppy.images.map((image, index) => (
+										<div
+											key={index}
+											className="relative group cursor-pointer"
+											onClick={() =>
+												setModal({ name: selectedPuppy.name, images: selectedPuppy.images })
+											}>
+											<div className="aspect-square relative w-full h-32 md:h-40 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
+												<ImageWithLoader
+													src={image}
+													alt={`${selectedPuppy.name} photo ${index + 1}`}
+													fill
+													className="object-cover"
+												/>
+												{selectedPuppy.isReserved ? (
+													<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-green-700 px-4 py-2 rounded text-lg font-bold border-2 border-green-600 transform rotate-[320deg]">
+														RESERVED
+													</span>
+												) : selectedPuppy.isSold ? (
+													<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">
+														REHOMED
+													</span>
+												) : null}
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						);
+					})()}
+				</div>
+			)}
 			{modal && !fullSizeImage && (
 				<GalleryModal
 					images={modal.images}

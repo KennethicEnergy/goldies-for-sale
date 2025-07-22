@@ -7,6 +7,7 @@ interface Puppy {
   name: string;
   images: string[];
   isSold: boolean;
+  isReserved?: boolean; // Added reserved status
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [newPuppyName, setNewPuppyName] = useState("");
+  const [uploadMode, setUploadMode] = useState<'single' | 'all'>('single');
 
   useEffect(() => {
     fetchData();
@@ -69,25 +71,48 @@ export default function AdminPage() {
 
     try {
       const formData = new FormData();
-      formData.append("folder", selectedFolder);
 
-      for (let i = 0; i < files.length; i++) {
-        formData.append("images", files[i]);
-      }
+      if (uploadMode === 'single') {
+        formData.append("folder", selectedFolder);
+        for (let i = 0; i < files.length; i++) {
+          formData.append("images", files[i]);
+        }
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (response.ok) {
-        setUploadStatus("Upload successful! Refreshing data...");
-        setTimeout(() => {
-          fetchData();
-          setUploadStatus("");
-        }, 2000);
+        if (response.ok) {
+          setUploadStatus("Upload successful! Refreshing data...");
+          setTimeout(() => {
+            fetchData();
+            setUploadStatus("");
+          }, 2000);
+        } else {
+          setUploadStatus("Upload failed. Please try again.");
+        }
       } else {
-        setUploadStatus("Upload failed. Please try again.");
+        // Bulk upload to all folders
+        for (let i = 0; i < files.length; i++) {
+          formData.append("images", files[i]);
+        }
+
+        const response = await fetch("/api/upload-all", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setUploadStatus(`Bulk upload successful! Uploaded to ${result.summary.successful} folders. Refreshing data...`);
+          setTimeout(() => {
+            fetchData();
+            setUploadStatus("");
+          }, 3000);
+        } else {
+          setUploadStatus("Bulk upload failed. Please try again.");
+        }
       }
     } catch {
       setUploadStatus("Upload failed. Please try again.");
@@ -96,12 +121,12 @@ export default function AdminPage() {
     setUploading(false);
   };
 
-  const togglePuppyStatus = async (puppyId: number, currentStatus: boolean) => {
+  const togglePuppyStatus = async (puppyId: number, currentStatus: boolean, type: 'sold' | 'reserved' = 'sold') => {
     try {
       const response = await fetch(`/api/puppies/${puppyId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isSold: !currentStatus })
+        body: JSON.stringify(type === 'sold' ? { isSold: !currentStatus } : { isReserved: !currentStatus })
       });
 
       if (response.ok) {
@@ -227,21 +252,59 @@ export default function AdminPage() {
         {/* Upload Section */}
         <div className="bg-white rounded-lg p-6 mb-8 shadow-md text-black">
           <h2 className="text-2xl font-semibold mb-4">Upload Images</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Folder:</label>
-              <select
-                value={selectedFolder}
-                onChange={(e) => setSelectedFolder(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-              >
-                <option value="dam">Dam (Queenie)</option>
-                <option value="sire">Sire (King)</option>
-                {puppies.map(puppy => (
-                  <option key={puppy.id} value={puppy.name.toLowerCase()}>{puppy.name}</option>
-                ))}
-              </select>
+
+          {/* Upload Mode Selection */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Upload Mode:</label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="single"
+                  checked={uploadMode === 'single'}
+                  onChange={(e) => setUploadMode(e.target.value as 'single' | 'all')}
+                  className="mr-2"
+                />
+                <span>Single Folder</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="all"
+                  checked={uploadMode === 'all'}
+                  onChange={(e) => setUploadMode(e.target.value as 'single' | 'all')}
+                  className="mr-2"
+                />
+                <span>All Folders</span>
+              </label>
             </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {uploadMode === 'single' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Folder:</label>
+                <select
+                  value={selectedFolder}
+                  onChange={(e) => setSelectedFolder(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                >
+                  <option value="dam">Dam (Queenie)</option>
+                  <option value="sire">Sire (King)</option>
+                  {puppies.map(puppy => (
+                    <option key={puppy.id} value={puppy.name.toLowerCase()}>{puppy.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {uploadMode === 'all' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Upload to All Folders:</label>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                  Images will be uploaded to all puppy folders: dam, sire, gray, blue, fuchsia, green, pink, red, sky, violet, yellow
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Select Images:</label>
               <input
@@ -312,22 +375,36 @@ export default function AdminPage() {
                 <h3 className="font-semibold text-lg mb-2">{puppy.name}</h3>
                 <div className="flex items-center justify-between">
                   <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    puppy.isSold
-                      ? "bg-red-100 text-red-700"
-                      : "bg-green-100 text-green-700"
+                    puppy.isReserved
+                      ? "bg-green-100 text-green-700"
+                      : puppy.isSold
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
                   }`}>
-                    {puppy.isSold ? "REHOMED" : "AVAILABLE"}
+                    {puppy.isReserved ? "RESERVED" : puppy.isSold ? "REHOMED" : "AVAILABLE"}
                   </span>
-                  <button
-                    onClick={() => togglePuppyStatus(puppy.id, puppy.isSold)}
-                    className={`px-3 py-1 rounded text-sm ${
-                      puppy.isSold
-                        ? "bg-green-600 text-white hover:bg-green-700"
-                        : "bg-red-600 text-white hover:bg-red-700"
-                    } transition-colors`}
-                  >
-                    {puppy.isSold ? "Mark Available" : "Mark Rehomed"}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => togglePuppyStatus(puppy.id, !!puppy.isReserved, 'reserved')}
+                      className={`px-3 py-1 rounded text-sm ${
+                        puppy.isReserved
+                          ? "bg-gray-400 text-white hover:bg-gray-500"
+                          : "bg-green-600 text-white hover:bg-green-700"
+                      } transition-colors`}
+                    >
+                      {puppy.isReserved ? "Unreserve" : "Mark Reserved"}
+                    </button>
+                    <button
+                      onClick={() => togglePuppyStatus(puppy.id, puppy.isSold, 'sold')}
+                      className={`px-3 py-1 rounded text-sm ${
+                        puppy.isSold
+                          ? "bg-green-600 text-white hover:bg-green-700"
+                          : "bg-red-600 text-white hover:bg-red-700"
+                      } transition-colors`}
+                    >
+                      {puppy.isSold ? "Mark Available" : "Mark Rehomed"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
