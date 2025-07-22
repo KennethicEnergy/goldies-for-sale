@@ -427,15 +427,15 @@ export default function Home() {
 				<div className="text-center">
 					<h3 className="text-2xl font-bold text-yellow-900 mb-6">Contact Us</h3>
 
-					<div className="grid md:grid-cols-2 gap-6 text-yellow-800 mb-6">
+					<div className="grid gap-6 text-yellow-800 mb-6">
 						<div>
 							<h4 className="font-semibold text-lg mb-2">Phone</h4>
 							<p className="text-lg">+63 927 255 9083</p>
 						</div>
-						<div>
+						{/* <div>
 							<h4 className="font-semibold text-lg mb-2">Location</h4>
 							<p className="text-lg">Lipa City, Batangas</p>
-						</div>
+						</div> */}
 					</div>
 
 					<div className="border-t border-yellow-200 pt-4">
