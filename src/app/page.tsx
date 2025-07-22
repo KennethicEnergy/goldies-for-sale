@@ -79,8 +79,8 @@ function GalleryModal({
 	onImageClick: (image: string) => void;
 }) {
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-			<div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 relative shadow-2xl border border-gray-200">
+		<div className="fixed inset-0 flex items-center justify-center bg-black/80 z-50">
+			<div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 relative shadow-2xl border border-gray-200 text-center">
 				<button
 					onClick={onClose}
 					className="absolute top-4 left-4 text-yellow-700 font-semibold px-4 py-2 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-all duration-200 shadow-sm border border-yellow-200">
@@ -199,13 +199,6 @@ export default function Home() {
 	const [selectedFilter, setSelectedFilter] = useState<string>("ALL");
 
 	useEffect(() => {
-		// Track visit
-		fetch("/api/track-visit", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ pageVisited: "home" })
-		}).catch(error => console.error("Error tracking visit:", error));
-
 		// Fetch puppies data
 		fetch("/api/puppies")
 			.then((res) => res.json())
