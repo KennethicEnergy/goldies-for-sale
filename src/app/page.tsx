@@ -1,443 +1,621 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
 
-function ImageWithLoader({ src, alt, className, fill, width, height, onClick }: {
-  src: string;
-  alt: string;
-  className?: string;
-  fill?: boolean;
-  width?: number;
-  height?: number;
-  onClick?: (e: React.MouseEvent) => void;
-}) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-  return (
-    <div className="relative w-full h-full">
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
-        </div>
-      )}
-      {hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
-          <div className="text-gray-500 text-sm">Failed to load</div>
-        </div>
-      )}
-      <Image
-        src={src}
-        alt={alt}
-        className={className}
-        fill={fill}
-        width={width}
-        height={height}
-        onClick={onClick}
-        onLoad={() => setIsLoading(false)}
-        onError={() => {
-          setIsLoading(false);
-          setHasError(true);
-        }}
-      />
-    </div>
-  );
+import {
+  CIVIL_STATUS_OPTIONS,
+  EMPTY_USER_FORM,
+  GENDER_OPTIONS,
+  type UserFormValues,
+  type UserRecord,
+} from "@/types/user";
+
+interface UsersResponse {
+  users?: UserRecord[];
+  message?: string;
 }
 
-interface Puppy {
-	id: number;
-	name: string;
-	images: string[];
-	isSold: boolean;
-  isReserved?: boolean;
-	createdAt: string;
+interface ActionResponse {
+  message?: string;
 }
 
-interface Dog {
-	id: number;
-	name: string;
-	type: "dam" | "sire";
-	images: string[];
-	createdAt: string;
+type FieldErrors = Partial<Record<keyof UserFormValues, string>>;
+
+type FlashMessage = {
+  type: "success" | "error";
+  text: string;
+};
+
+function createEmptyForm(): UserFormValues {
+  return { ...EMPTY_USER_FORM };
 }
 
-interface Data {
-	puppies: Puppy[];
-	dam: Dog;
-	sire: Dog;
+function formatBirthdate(value: string): string {
+  if (!value) {
+    return "-";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return parsedDate.toLocaleDateString();
 }
 
-function GalleryModal({
-	images,
-	name,
-	onClose,
-	onImageClick,
-}: {
-	images: string[];
-	name: string;
-	onClose: () => void;
-	onImageClick: (image: string) => void;
-}) {
-	return (
-		<div className="fixed inset-0 flex items-center justify-center bg-black/80 z-50">
-			<div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 relative shadow-2xl border border-gray-200 text-center">
-				<button
-					onClick={onClose}
-					className="absolute top-4 left-4 text-yellow-700 font-semibold px-4 py-2 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-all duration-200 shadow-sm border border-yellow-200">
-					&larr; Back
-				</button>
-				<button
-					onClick={onClose}
-					className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-all duration-200">
-					&times;
-				</button>
-				<h2 className="text-3xl font-bold mb-6 text-center text-gray-800 mt-8">
-					{name}&apos;s Gallery
-				</h2>
-				<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-					{images.map((img, idx) => (
-						<div
-							key={idx}
-							className="relative w-full aspect-square group cursor-pointer"
-							onClick={() => onImageClick(img)}>
-							<ImageWithLoader
-								src={img}
-								alt={name + " photo " + (idx + 1)}
-								fill
-								className="object-cover rounded-lg shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105"
-							/>
-							<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 rounded-lg"></div>
-						</div>
-					))}
-				</div>
-			</div>
-		</div>
-	);
+function mapSkills(user: UserRecord): string {
+  const selectedSkills: string[] = [];
+  if (user.skill1) selectedSkills.push("Skill 1");
+  if (user.skill2) selectedSkills.push("Skill 2");
+  if (user.skill3) selectedSkills.push("Skill 3");
+  if (user.skill4) selectedSkills.push("Skill 4");
+  return selectedSkills.length > 0 ? selectedSkills.join(", ") : "-";
 }
 
-function FullSizeImageModal({
-	images,
-	currentImageIndex,
-	name,
-	onClose,
-	onNavigate,
-}: {
-	images: string[];
-	currentImageIndex: number;
-	name: string;
-	onClose: () => void;
-	onNavigate: (direction: "prev" | "next") => void;
-}) {
-	const currentImage = images[currentImageIndex];
+function validateForm(values: UserFormValues): FieldErrors {
+  const errors: FieldErrors = {};
 
-	return (
-		<div
-			className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm"
-			onClick={onClose}>
-			<div className="relative w-[80%] h-[80%] flex items-center justify-center">
-				{/* Close button */}
-				<button
-					onClick={onClose}
-					className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl">
-					&times;
-				</button>
+  if (!values.userNo.trim()) {
+    errors.userNo = "User No. is required.";
+  } else if (values.userNo.trim().length > 20) {
+    errors.userNo = "User No. must be 20 characters or less.";
+  }
 
-				{/* Previous button */}
-				{currentImageIndex > 0 && (
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							onNavigate("prev");
-						}}
-						className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl">
-						‹
-					</button>
-				)}
+  if (!values.lastName.trim()) {
+    errors.lastName = "Last Name is required.";
+  } else if (values.lastName.trim().length > 80) {
+    errors.lastName = "Last Name must be 80 characters or less.";
+  }
 
-				{/* Next button */}
-				{currentImageIndex < images.length - 1 && (
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							onNavigate("next");
-						}}
-						className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white hover:text-gray-300 hover:bg-black/20 rounded-full transition-all duration-200 z-10 text-2xl">
-						›
-					</button>
-				)}
+  if (!values.firstName.trim()) {
+    errors.firstName = "First Name is required.";
+  } else if (values.firstName.trim().length > 80) {
+    errors.firstName = "First Name must be 80 characters or less.";
+  }
 
-				{/* Image */}
-				<ImageWithLoader
-					src={currentImage}
-					alt={`${name} photo ${currentImageIndex + 1}`}
-					width={1200}
-					height={800}
-					className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-					onClick={(e) => e.stopPropagation()}
-				/>
+  if (values.middleName.trim().length > 80) {
+    errors.middleName = "Middle Name must be 80 characters or less.";
+  }
 
-				{/* Image counter */}
-				<div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full text-sm">
-					{currentImageIndex + 1} / {images.length}
-				</div>
-			</div>
-		</div>
-	);
+  if (!values.birthdate) {
+    errors.birthdate = "Birthdate is required.";
+  }
+
+  return errors;
 }
 
 export default function Home() {
-	const [modal, setModal] = useState<null | { name: string; images: string[] }>(
-		null
-	);
-	const [fullSizeImage, setFullSizeImage] = useState<null | {
-		images: string[];
-		currentIndex: number;
-		name: string;
-	}>(null);
-	const [data, setData] = useState<Data | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [selectedFilter, setSelectedFilter] = useState<string>("ALL");
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [formValues, setFormValues] = useState<UserFormValues>(createEmptyForm);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [savingUser, setSavingUser] = useState(false);
+  const [deletingUserKey, setDeletingUserKey] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
 
-	useEffect(() => {
-		// Fetch puppies data
-		fetch("/api/puppies")
-			.then((res) => res.json())
-			.then((data) => {
-				setData(data);
-				setLoading(false);
-			})
-			.catch((error) => {
-				console.error("Error fetching data:", error);
-				setLoading(false);
-			});
-	}, []);
+  const civilStatusLabelMap = useMemo(
+    () => new Map(CIVIL_STATUS_OPTIONS.map((option) => [option.value, option.label])),
+    []
+  );
+  const genderLabelMap = useMemo(
+    () => new Map(GENDER_OPTIONS.map((option) => [option.value, option.label])),
+    []
+  );
+  const isEditing = Boolean(formValues.eId);
 
-	if (loading) {
-		return (
-			<main className="min-h-screen bg-yellow-50 flex items-center justify-center">
-				<div className="text-center">
-					<div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mb-4"></div>
-					<p className="text-yellow-800 text-lg">Loading puppies...</p>
-				</div>
-			</main>
-		);
-	}
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
 
-	if (!data) {
-		return (
-			<main className="min-h-screen bg-yellow-50 flex items-center justify-center">
-				<div className="text-center">
-					<p className="text-red-600 text-lg">Failed to load puppies</p>
-				</div>
-			</main>
-		);
-	}
+    try {
+      const response = await fetch("/api/users", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const data = (await response.json()) as UsersResponse;
 
-	return (
-		<main className="min-h-screen bg-yellow-50 flex flex-col items-center p-8">
-			<div className="w-full max-w-4xl">
-				<h1 className="text-4xl font-bold mb-2 text-yellow-900 text-center">
-					Golden Retriever Puppies
-				</h1>
-				<h2 className="text-2xl font-bold mb-2 text-yellow-900 text-center">
-					FOR SALE
-				</h2>
-				<p className="text-lg text-yellow-800 text-center mb-4">
-					Click a puppy to see more photos!
-				</p>
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to load users.");
+      }
 
-				{/* Filter Dropdown */}
-				<div className="flex justify-center mb-8">
-					<select
-						value={selectedFilter}
-						onChange={(e) => setSelectedFilter(e.target.value)}
-						className="px-4 py-2 border border-yellow-300 rounded-lg bg-white text-yellow-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-					>
-						<option value="ALL">All Puppies</option>
-						{data.puppies.map((puppy) => (
-							<option key={puppy.id} value={puppy.name}>
-								{puppy.name}
-							</option>
-						))}
-					</select>
-				</div>
-			</div>
+      setUsers(Array.isArray(data.users) ? data.users : []);
+      setFlashMessage((current) => (current?.type === "error" ? null : current));
+    } catch (error) {
+      setUsers([]);
+      setFlashMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Unable to load users from API.",
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
 
-			<div className="mb-6 flex gap-8">
-				<div className="text-center">
-					<div
-						className="w-24 h-24 relative mx-auto mb-2 cursor-pointer"
-						onClick={() =>
-							setModal({ name: data.dam.name, images: data.dam.images })
-						}>
-						<ImageWithLoader
-							src={data.dam.images[0]}
-							alt="Dam"
-							fill
-							className="object-cover rounded-full border-4 border-yellow-400"
-						/>
-					</div>
-					<span className="block text-yellow-700 font-semibold">
-						Dam: {data.dam.name}
-					</span>
-				</div>
-				<div className="text-center">
-					<div
-						className="w-24 h-24 relative mx-auto mb-2 cursor-pointer"
-						onClick={() =>
-							setModal({ name: data.sire.name, images: data.sire.images })
-						}>
-						<ImageWithLoader
-							src={data.sire.images[0]}
-							alt="Sire"
-							fill
-							className="object-cover rounded-full border-4 border-yellow-400"
-						/>
-					</div>
-					<span className="block text-yellow-700 font-semibold">
-						Sire: {data.sire.name}
-					</span>
-				</div>
-			</div>
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
 
-			{/* Filtered Content */}
-			{selectedFilter === "ALL" ? (
-				// Show all puppies in a grid
-				<div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
-					{data.puppies.map((puppy) => (
-						<div
-							key={puppy.id}
-							className="relative group cursor-pointer"
-							onClick={() =>
-								setModal({ name: puppy.name, images: puppy.images })
-							}>
-							<div className="aspect-square relative w-full h-48 md:h-56 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
-								<ImageWithLoader
-									src={puppy.images[0]}
-									alt={puppy.name}
-									fill
-									className="object-cover"
-								/>
-								{puppy.isReserved ? (
-									<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-green-700 px-4 py-2 rounded text-lg font-bold border-2 border-green-600 transform rotate-[320deg]">
-										RESERVED
-									</span>
-								) : puppy.isSold ? (
-									<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">
-										REHOMED
-									</span>
-								) : null}
-							</div>
-							{/* <div className="mt-2 text-center text-yellow-900 font-semibold text-lg">{puppy.name}</div> */}
-						</div>
-					))}
-				</div>
-			) : (
-				// Show selected puppy with all its images
-				<div className="w-full max-w-4xl">
-					{(() => {
-						const selectedPuppy = data.puppies.find(p => p.name === selectedFilter);
-						if (!selectedPuppy) return null;
+  function resetForm() {
+    setFormValues(createEmptyForm());
+    setFieldErrors({});
+  }
 
-						return (
-							<div className="text-center mb-6">
-								<h3 className="text-2xl font-bold text-yellow-900 mb-4">{selectedPuppy.name}</h3>
-								<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-									{selectedPuppy.images.map((image, index) => (
-										<div
-											key={index}
-											className="relative group cursor-pointer"
-											onClick={() =>
-												setModal({ name: selectedPuppy.name, images: selectedPuppy.images })
-											}>
-											<div className="aspect-square relative w-full h-32 md:h-40 rounded-xl overflow-hidden border-4 border-yellow-300 group-hover:scale-105 transition-transform">
-												<ImageWithLoader
-													src={image}
-													alt={`${selectedPuppy.name} photo ${index + 1}`}
-													fill
-													className="object-cover"
-												/>
-												{selectedPuppy.isReserved ? (
-													<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-green-700 px-4 py-2 rounded text-lg font-bold border-2 border-green-600 transform rotate-[320deg]">
-														RESERVED
-													</span>
-												) : selectedPuppy.isSold ? (
-													<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-600 px-4 py-2 rounded text-lg font-bold border-2 border-red-600 transform rotate-[320deg]">
-														REHOMED
-													</span>
-												) : null}
-											</div>
-										</div>
-									))}
-								</div>
-							</div>
-						);
-					})()}
-				</div>
-			)}
-			{modal && !fullSizeImage && (
-				<GalleryModal
-					images={modal.images}
-					name={modal.name}
-					onClose={() => setModal(null)}
-					onImageClick={(image) => {
-						const imageIndex = modal.images.indexOf(image);
-						setFullSizeImage({
-							images: modal.images,
-							currentIndex: imageIndex,
-							name: modal.name,
-						});
-					}}
-				/>
-			)}
-			{fullSizeImage && (
-				<FullSizeImageModal
-					images={fullSizeImage.images}
-					currentImageIndex={fullSizeImage.currentIndex}
-					name={fullSizeImage.name}
-					onClose={() => setFullSizeImage(null)}
-					onNavigate={(direction) => {
-						if (direction === "prev" && fullSizeImage.currentIndex > 0) {
-							setFullSizeImage({
-								...fullSizeImage,
-								currentIndex: fullSizeImage.currentIndex - 1,
-							});
-						} else if (
-							direction === "next" &&
-							fullSizeImage.currentIndex < fullSizeImage.images.length - 1
-						) {
-							setFullSizeImage({
-								...fullSizeImage,
-								currentIndex: fullSizeImage.currentIndex + 1,
-							});
-						}
-					}}
-				/>
-			)}
+  function populateFormForEdit(user: UserRecord) {
+    setFormValues({
+      eId: user.eId,
+      userNo: user.userNo,
+      lastName: user.lastName,
+      firstName: user.firstName,
+      middleName: user.middleName,
+      birthdate: user.birthdate,
+      gender: user.gender,
+      civilStatus: user.civilStatus,
+      skill1: user.skill1,
+      skill2: user.skill2,
+      skill3: user.skill3,
+      skill4: user.skill4,
+    });
+    setFieldErrors({});
+    setFlashMessage(null);
+  }
 
-			{/* Contact Section */}
-			<footer className="w-full max-w-4xl mt-12 pt-8 border-t-2 border-yellow-200">
-				<div className="text-center">
-					<h3 className="text-2xl font-bold text-yellow-900 mb-6">Contact Us</h3>
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFlashMessage(null);
 
-					<div className="grid gap-6 text-yellow-800 mb-6">
-						<div>
-							<h4 className="font-semibold text-lg mb-2">Phone</h4>
-							<p className="text-lg">+63 927 255 9083</p>
-						</div>
-						{/* <div>
-							<h4 className="font-semibold text-lg mb-2">Location</h4>
-							<p className="text-lg">Lipa City, Batangas</p>
-						</div> */}
-					</div>
+    const preparedValues: UserFormValues = {
+      ...formValues,
+      userNo: formValues.userNo.trim(),
+      lastName: formValues.lastName.trim(),
+      firstName: formValues.firstName.trim(),
+      middleName: formValues.middleName.trim(),
+    };
 
-					<div className="border-t border-yellow-200 pt-4">
-						<p className="text-sm text-yellow-700">
-							Available for visits by appointment only
-						</p>
-					</div>
-				</div>
-			</footer>
-		</main>
-	);
+    const validationErrors = validateForm(preparedValues);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
+    setFieldErrors({});
+    setSavingUser(true);
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(preparedValues),
+      });
+      const data = (await response.json()) as ActionResponse;
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to save user.");
+      }
+
+      setFlashMessage({
+        type: "success",
+        text: data.message || "User saved successfully.",
+      });
+      resetForm();
+      await loadUsers();
+    } catch (error) {
+      setFlashMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to save the user record.",
+      });
+    } finally {
+      setSavingUser(false);
+    }
+  }
+
+  async function handleDeleteUser(user: UserRecord) {
+    setFlashMessage(null);
+
+    if (!user.eId) {
+      setFlashMessage({
+        type: "error",
+        text:
+          "Cannot delete this record because the upstream e_Id value is missing.",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${user.firstName} ${user.lastName} (User No. ${user.userNo})?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingUserKey(user.rowKey);
+    try {
+      const response = await fetch("/api/users/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ eId: user.eId }),
+      });
+      const data = (await response.json()) as ActionResponse;
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete user.");
+      }
+
+      setFlashMessage({
+        type: "success",
+        text: data.message || "User deleted successfully.",
+      });
+      if (formValues.eId === user.eId) {
+        resetForm();
+      }
+      await loadUsers();
+    } catch (error) {
+      setFlashMessage({
+        type: "error",
+        text:
+          error instanceof Error ? error.message : "Failed to delete the record.",
+      });
+    } finally {
+      setDeletingUserKey(null);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-6">
+        <header className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h1 className="text-2xl font-bold md:text-3xl">
+            User Management Application
+          </h1>
+          <p className="mt-2 text-sm text-slate-600 md:text-base">
+            API domain in use: <strong>http://localhost:18100</strong>
+          </p>
+        </header>
+
+        {flashMessage && (
+          <div
+            className={`rounded-lg px-4 py-3 text-sm font-medium ${
+              flashMessage.type === "success"
+                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+            }`}
+          >
+            {flashMessage.text}
+          </div>
+        )}
+
+        <section className="grid gap-8 lg:grid-cols-[420px_1fr]">
+          <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-xl font-semibold">
+              {isEditing ? "Edit User" : "Add User"}
+            </h2>
+            <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="userNo">
+                  User No. <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="userNo"
+                  type="text"
+                  maxLength={20}
+                  value={formValues.userNo}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      userNo: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                />
+                {fieldErrors.userNo && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.userNo}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="lastName">
+                  Last Name <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  maxLength={80}
+                  value={formValues.lastName}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      lastName: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                />
+                {fieldErrors.lastName && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.lastName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="firstName">
+                  First Name <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  maxLength={80}
+                  value={formValues.firstName}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      firstName: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                />
+                {fieldErrors.firstName && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.firstName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="middleName">
+                  Middle Name
+                </label>
+                <input
+                  id="middleName"
+                  type="text"
+                  maxLength={80}
+                  value={formValues.middleName}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      middleName: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                />
+                {fieldErrors.middleName && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.middleName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="birthdate">
+                  Birthdate <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="birthdate"
+                  type="date"
+                  value={formValues.birthdate}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      birthdate: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                />
+                {fieldErrors.birthdate && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.birthdate}
+                  </p>
+                )}
+              </div>
+
+              <fieldset>
+                <legend className="mb-1 block text-sm font-medium">Gender</legend>
+                <div className="flex flex-wrap gap-4">
+                  {GENDER_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className="inline-flex cursor-pointer items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        checked={formValues.gender === option.value}
+                        onChange={() =>
+                          setFormValues((previous) => ({
+                            ...previous,
+                            gender: option.value,
+                          }))
+                        }
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="civilStatus">
+                  Civil Status
+                </label>
+                <select
+                  id="civilStatus"
+                  value={formValues.civilStatus}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({
+                      ...previous,
+                      civilStatus: Number(event.target.value) as UserFormValues["civilStatus"],
+                    }))
+                  }
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 transition focus:ring-2"
+                >
+                  {CIVIL_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <fieldset>
+                <legend className="mb-1 block text-sm font-medium">Skills</legend>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formValues.skill1}
+                      onChange={(event) =>
+                        setFormValues((previous) => ({
+                          ...previous,
+                          skill1: event.target.checked,
+                        }))
+                      }
+                    />
+                    Skill 1
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formValues.skill2}
+                      onChange={(event) =>
+                        setFormValues((previous) => ({
+                          ...previous,
+                          skill2: event.target.checked,
+                        }))
+                      }
+                    />
+                    Skill 2
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formValues.skill3}
+                      onChange={(event) =>
+                        setFormValues((previous) => ({
+                          ...previous,
+                          skill3: event.target.checked,
+                        }))
+                      }
+                    />
+                    Skill 3
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formValues.skill4}
+                      onChange={(event) =>
+                        setFormValues((previous) => ({
+                          ...previous,
+                          skill4: event.target.checked,
+                        }))
+                      }
+                    />
+                    Skill 4
+                  </label>
+                </div>
+              </fieldset>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingUser}
+                  className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-400"
+                >
+                  {savingUser
+                    ? "Saving..."
+                    : isEditing
+                      ? "Update User"
+                      : "Add User"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={savingUser}
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 disabled:cursor-not-allowed"
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Users</h2>
+              <button
+                type="button"
+                onClick={() => void loadUsers()}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium transition hover:bg-slate-100"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {loadingUsers ? (
+              <p className="text-sm text-slate-600">Loading users...</p>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-slate-600">No users found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-left">
+                      <th className="px-3 py-2 font-semibold">User No.</th>
+                      <th className="px-3 py-2 font-semibold">Last Name</th>
+                      <th className="px-3 py-2 font-semibold">First Name</th>
+                      <th className="px-3 py-2 font-semibold">Middle Name</th>
+                      <th className="px-3 py-2 font-semibold">Birthdate</th>
+                      <th className="px-3 py-2 font-semibold">Gender</th>
+                      <th className="px-3 py-2 font-semibold">Civil Status</th>
+                      <th className="px-3 py-2 font-semibold">Skills</th>
+                      <th className="px-3 py-2 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user.rowKey} className="border-b border-slate-200">
+                        <td className="px-3 py-2">{user.userNo || "-"}</td>
+                        <td className="px-3 py-2">{user.lastName || "-"}</td>
+                        <td className="px-3 py-2">{user.firstName || "-"}</td>
+                        <td className="px-3 py-2">{user.middleName || "-"}</td>
+                        <td className="px-3 py-2">{formatBirthdate(user.birthdate)}</td>
+                        <td className="px-3 py-2">
+                          {genderLabelMap.get(user.gender) || "Male"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {civilStatusLabelMap.get(user.civilStatus) || "Single"}
+                        </td>
+                        <td className="px-3 py-2">{mapSkills(user)}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => populateFormForEdit(user)}
+                              className="rounded bg-amber-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-600"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteUser(user)}
+                              disabled={deletingUserKey === user.rowKey}
+                              className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+                            >
+                              {deletingUserKey === user.rowKey ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
