@@ -16,10 +16,10 @@ export interface UpstreamResult {
   data: unknown;
 }
 
-function createFormBody(payload: Record<string, string | number>): string {
+function createFormBody(payload: object): string {
   const formData = new URLSearchParams();
 
-  Object.entries(payload).forEach(([key, value]) => {
+  Object.entries(payload as Record<string, unknown>).forEach(([key, value]) => {
     formData.append(key, String(value));
   });
 
